@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Outer glow/shadow -->
+    <item
+        android:width="20dp"
+        android:height="20dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#201976D2" />
+        </shape>
+    </item>
+    <!-- Main circle (blue) -->
+    <item
+        android:width="14dp"
+        android:height="14dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#1976D2" />
+        </shape>
+    </item>
+</layer-list>

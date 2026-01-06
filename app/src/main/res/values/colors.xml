@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary -->
+    <color name="primary">#1976D2</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#BBDEFB</color>
+    <color name="on_primary_container">#0D47A1</color>
+
+    <!-- Secondary -->
+    <color name="secondary">#455A64</color>
+    <color name="on_secondary">#FFFFFF</color>
+
+    <!-- Tertiary (for AI Summary) -->
+    <color name="tertiary">#7B1FA2</color>
+    <color name="on_tertiary">#FFFFFF</color>
+    <color name="tertiary_container">#E1BEE7</color>
+    <color name="on_tertiary_container">#4A148C</color>
+
+    <!-- Utility -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
