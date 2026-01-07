@@ -40,7 +40,9 @@ class ArticleAdapter(
                 snippetText.text = article.contentSnippet
                 sourceText.text = article.source
                 dateText.text = article.publishedDate
-                audioIndicator.isVisible = article.audioUrl != null
+                // Audio is now detected dynamically via WebView JavaScript
+                // Hide indicator in list since we don't know until page loads
+                audioIndicator.isVisible = false
 
                 thumbnailImage.load(article.thumbnailUrl) {
                     crossfade(true)

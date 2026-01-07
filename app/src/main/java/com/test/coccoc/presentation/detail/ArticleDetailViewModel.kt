@@ -19,6 +19,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed class SummaryState {
+    object Idle : SummaryState()
+    object Loading : SummaryState()
+    data class Success(val summary: String) : SummaryState()
+    data class Error(val message: String) : SummaryState()
+}
+
+sealed class AudioSearchState {
+    object Idle : AudioSearchState()
+    object Searching : AudioSearchState()
+    data class Found(val audioUrl: String) : AudioSearchState()
+    object NotFound : AudioSearchState()
+}
+
 @HiltViewModel
 class ArticleDetailViewModel @Inject constructor(
     private val getArticleByIdUseCase: GetArticleByIdUseCase,
@@ -37,6 +51,17 @@ class ArticleDetailViewModel @Inject constructor(
     private val _downloadState = MutableStateFlow<DownloadStatus>(DownloadStatus.Idle)
     val downloadState: StateFlow<DownloadStatus> = _downloadState.asStateFlow()
 
+    private val _summaryState = MutableStateFlow<SummaryState>(SummaryState.Idle)
+    val summaryState: StateFlow<SummaryState> = _summaryState.asStateFlow()
+
+    private val _audioSearchState = MutableStateFlow<AudioSearchState>(AudioSearchState.Idle)
+    val audioSearchState: StateFlow<AudioSearchState> = _audioSearchState.asStateFlow()
+
+    // Store the audio URL found from WebView JavaScript
+    private var dynamicAudioUrl: String? = null
+
+    // Store web content extracted from WebView for summarization
+    private var webContent: String? = null
 
     // Expose playback state from AudioPlayerManager
     val playbackState: StateFlow<PlaybackState> = audioPlayerManager.playbackState
@@ -69,9 +94,28 @@ class ArticleDetailViewModel @Inject constructor(
         }
     }
 
+    fun setAudioSearching() {
+        _audioSearchState.value = AudioSearchState.Searching
+    }
+
+    fun onAudioFound(audioUrl: String) {
+        dynamicAudioUrl = audioUrl
+        _audioSearchState.value = AudioSearchState.Found(audioUrl)
+    }
+
+    fun onNoAudioFound() {
+        dynamicAudioUrl = null
+        _audioSearchState.value = AudioSearchState.NotFound
+    }
+
+    fun getAudioUrl(): String? = dynamicAudioUrl
+
+    fun setWebContent(content: String) {
+        webContent = content
+    }
+
     fun downloadAudio() {
-        val article = (_articleState.value as? UiState.Success)?.data ?: return
-        val audioUrl = article.audioUrl ?: return
+        val audioUrl = dynamicAudioUrl ?: return
 
         if (_downloadState.value is DownloadStatus.Downloading) {
             return // Already downloading
@@ -86,7 +130,7 @@ class ArticleDetailViewModel @Inject constructor(
 
     fun playAudio() {
         val article = (_articleState.value as? UiState.Success)?.data ?: return
-        val audioUrl = article.audioUrl ?: return
+        val audioUrl = dynamicAudioUrl ?: return
 
         if (audioPlayerManager.isPlayingArticle(articleId)) {
             audioPlayerManager.pause()
@@ -100,6 +144,37 @@ class ArticleDetailViewModel @Inject constructor(
                 thumbnailUrl = article.thumbnailUrl
             )
         }
+    }
+
+    fun summarizeContent() {
+        // Only use web content extracted from WebView via JavaScript
+        val content = webContent
+
+        if (content.isNullOrBlank()) {
+            _summaryState.value = SummaryState.Error("Đang tải nội dung, vui lòng thử lại sau")
+            return
+        }
+
+        if (_summaryState.value is SummaryState.Loading) {
+            return // Already summarizing
+        }
+
+        viewModelScope.launch {
+            _summaryState.value = SummaryState.Loading
+
+            when (val result = summarizeContentUseCase(content)) {
+                is Result.Success -> {
+                    _summaryState.value = SummaryState.Success(result.data)
+                }
+                is Result.Error -> {
+                    _summaryState.value = SummaryState.Error(result.message)
+                }
+            }
+        }
+    }
+
+    fun closeSummary() {
+        _summaryState.value = SummaryState.Idle
     }
 
     fun stopAudio() {

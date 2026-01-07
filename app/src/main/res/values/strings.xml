@@ -37,10 +37,16 @@
     <string name="audio_error">Audio playback error</string>
 
     <!-- Summarization -->
-    <string name="summarize">Summarize</string>
-    <string name="ai_summary">AI Summary</string>
+    <string name="summarize">Tóm tắt</string>
+    <string name="ai_summary">Tóm tắt AI</string>
     <string name="summarizing">Generating summary…</string>
-    <string name="summary_error">Failed to generate summary</string>
+    <string name="generating_summary">Đang tạo tóm tắt…</string>
+    <string name="summary_error">Không thể tạo tóm tắt</string>
+
+    <!-- WebView -->
+    <string name="searching_audio">Đang tìm audio…</string>
+    <string name="audio_found">Đã tìm thấy audio</string>
+    <string name="no_audio_found">Không tìm thấy audio</string>
 
     <!-- Time format -->
     <string name="time_format">%1$s / %2$s</string>

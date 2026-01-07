@@ -1,46 +1,49 @@
 # CocCoc Podcasts
 
-A modern Android podcast application built with Clean Architecture and MVVM pattern.
+An Android application for browsing and listening to podcasts from Vietnamese news sites (VnExpress, Dân Trí).
 
-## Features
+## Solution Overview
 
-- Article list with thumbnails
-- Article detail with collapsing toolbar
-- Audio player with ExoPlayer (HLS/MP3 streaming)
-- Mini player with seekbar
-- Download audio functionality
-- AI summarization (mock)
-- Multi-language support (English, Vietnamese)
-- Multiple build environments (Dev, Staging, Production)
+This application fulfills the requirements of the Cốc Cốc Android Developer test:
 
-## Screenshots
+### 1. Article List
+- Displays a list of podcast articles from VnExpress and Dân Trí
+- Each item shows: thumbnail, title, snippet, source, and publish date
+- RecyclerView with DiffUtil for efficient updates
 
-<!-- Add screenshots here -->
+### 2. Reading Article
+- Opens the actual article URL in a WebView
+- Users can read the full article content directly from the source website
+- Floating back button for navigation
 
-## Tech Stack
+### 3. Audio Detection & Download
+- **Dynamic audio detection**: JavaScript is injected into the WebView to find audio URLs
+- Searches for: `<audio>`, `<video>` elements, script content, data attributes
+- Supports multiple formats: MP3, M4A, M3U8 (HLS streaming)
+- Download functionality using Android DownloadManager
+- Progress tracking with visual feedback
 
-| Category | Technology |
-|----------|------------|
-| Language | Kotlin |
-| Min SDK | 24 (Android 7.0) |
-| Target SDK | 35 |
-| Architecture | Clean Architecture + MVVM |
-| DI | Hilt |
-| Async | Kotlin Coroutines + Flow |
-| UI | ViewBinding, XML Layouts |
-| Media | Media3 ExoPlayer |
-| Image Loading | Coil |
-| JSON | Gson |
+### 4. Content Summarization
+- **Extractive summarization algorithm** that analyzes the actual web content
+- JavaScript extracts article text from the WebView
+- Scoring system based on:
+  - Sentence position (first/last sentences are prioritized)
+  - Word frequency (common important words)
+  - Sentence length (medium-length preferred)
+  - Vietnamese keywords ("quan trọng", "theo", "cho biết", etc.)
+  - Presence of numbers (factual content)
+- Returns top 5 most important sentences
 
 ## Architecture
 
-The project follows **Clean Architecture** principles with 3 main layers:
+The project follows **Clean Architecture** with **MVVM** pattern:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    PRESENTATION LAYER                        │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │  Fragment   │  │  ViewModel  │  │  Adapter/ViewHolder │  │
+│  │  + WebView  │  │  + States   │  │                     │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 ├─────────────────────────────────────────────────────────────┤
 │                      DOMAIN LAYER                            │
@@ -55,210 +58,176 @@ The project follows **Clean Architecture** principles with 3 main layers:
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Why Clean Architecture + MVVM?
+
+1. **Separation of Concerns**: Each layer has a single responsibility
+2. **Testability**: Business logic is isolated and easily testable
+3. **Scalability**: Easy to add new features without affecting existing code
+4. **Maintainability**: Changes in one layer don't affect others
+
 ## Project Structure
 
 ```
 app/src/main/java/com/test/coccoc/
-├── config/                     # App configuration
-│   └── AppConfig.kt           # Environment config accessor
 ├── data/                       # Data Layer
-│   ├── datasource/            # Data sources
-│   │   └── MockArticleData.kt
-│   ├── player/                # Audio player
-│   │   └── AudioPlayerManager.kt
-│   └── repository/            # Repository implementations
+│   ├── datasource/
+│   │   └── MockArticleData.kt  # Sample article data
+│   ├── player/
+│   │   └── AudioPlayerManager.kt  # ExoPlayer wrapper
+│   └── repository/
 │       ├── MockArticleRepositoryImpl.kt
 │       ├── DownloadRepositoryImpl.kt
-│       └── FakeSummarizationRepositoryImpl.kt
-├── di/                         # Dependency Injection
-│   ├── AppModule.kt           # App-level dependencies
-│   └── RepositoryModule.kt    # Repository bindings
-├── domain/                     # Domain Layer
-│   ├── model/                 # Business models
+│       └── FakeSummarizationRepositoryImpl.kt  # Extractive summarization
+├── di/                         # Hilt Dependency Injection
+│   ├── AppModule.kt
+│   └── RepositoryModule.kt
+├── domain/                     # Domain Layer (Business Logic)
+│   ├── model/
 │   │   ├── Article.kt
 │   │   ├── DownloadStatus.kt
 │   │   └── Result.kt
-│   ├── repository/            # Repository interfaces
-│   │   ├── ArticleRepository.kt
-│   │   ├── DownloadRepository.kt
-│   │   └── SummarizationRepository.kt
-│   └── usecase/               # Use cases
+│   ├── repository/             # Interfaces
+│   └── usecase/
 │       ├── GetArticlesUseCase.kt
 │       ├── GetArticleByIdUseCase.kt
 │       ├── DownloadAudioUseCase.kt
 │       └── SummarizeContentUseCase.kt
 ├── presentation/               # Presentation Layer
-│   ├── common/                # Shared UI components
+│   ├── common/
 │   │   ├── UiState.kt
-│   │   └── player/
-│   │       └── MiniPlayerView.kt
-│   ├── detail/                # Article detail screen
-│   │   ├── ArticleDetailFragment.kt
+│   │   └── player/MiniPlayerView.kt
+│   ├── detail/
+│   │   ├── ArticleDetailFragment.kt  # WebView + JS injection
 │   │   └── ArticleDetailViewModel.kt
-│   ├── list/                  # Article list screen
+│   ├── list/
 │   │   ├── ArticleListFragment.kt
 │   │   ├── ArticleListViewModel.kt
 │   │   └── ArticleAdapter.kt
-│   └── main/                  # Main activity
+│   └── main/
 │       └── MainActivity.kt
-└── CocCocApplication.kt        # Application class
-
-app/src/main/res/
-├── layout/                     # XML layouts
-├── drawable/                   # Drawables & icons
-├── values/                     # English strings, colors, themes
-└── values-vi/                  # Vietnamese strings
+└── CocCocApplication.kt
 ```
 
-## Build Variants
+## Technical Implementation
 
-The project supports 3 environments:
-
-| Environment | App ID Suffix | Base URL |
-|-------------|---------------|----------|
-| **dev** | `.dev` | https://dev-api.coccoc.com/ |
-| **staging** | `.staging` | https://staging-api.coccoc.com/ |
-| **production** | (none) | https://api.coccoc.com/ |
-
-### Build Commands
-
-```bash
-# Development
-./gradlew assembleDevDebug
-./gradlew installDevDebug
-
-# Staging
-./gradlew assembleStagingDebug
-./gradlew installStagingDebug
-
-# Production
-./gradlew assembleProductionRelease
-./gradlew installProductionRelease
-
-# Build all variants
-./gradlew assemble
-```
-
-### Accessing Environment Config
+### Audio Detection via JavaScript Injection
 
 ```kotlin
-import com.test.coccoc.config.AppConfig
-
-// Get base URL
-val baseUrl = AppConfig.BASE_URL
-
-// Check environment
-if (AppConfig.isDevelopment) {
-    // Development-only code
-}
-
-if (AppConfig.isProduction) {
-    // Production-only code
+// Inject JavaScript after WebView loads
+webViewClient = object : WebViewClient() {
+    override fun onPageFinished(view: WebView?, url: String?) {
+        // Wait for dynamic content to load
+        view?.postDelayed({ injectAudioFinderScript() }, 2000)
+        view?.postDelayed({ injectAudioFinderScript() }, 5000)
+    }
 }
 ```
 
-## Getting Started
+The JavaScript searches for:
+- `<audio>` and `<video>` elements with `src` or `currentSrc`
+- Content inside `<script>` tags
+- Data attributes: `data-audio`, `data-src`, `data-url`
+- URL patterns: `.mp3`, `.m4a`, `.m3u8`, `playlist`
+- Site-specific patterns for VnExpress and Dân Trí
 
-### Prerequisites
+### Extractive Summarization Algorithm
 
-- Android Studio Hedgehog (2023.1.1) or later
-- JDK 17
-- Android SDK 35
+```kotlin
+private fun extractiveSummarize(content: String): String {
+    val sentences = splitIntoSentences(content)
+    val wordFrequency = calculateWordFrequency(content)
 
-### Setup
+    val scoredSentences = sentences.mapIndexed { index, sentence ->
+        val score = scoreSentence(sentence, index, sentences.size, wordFrequency)
+        ScoredSentence(index, sentence, score)
+    }
 
-1. Clone the repository:
+    return scoredSentences
+        .sortedByDescending { it.score }
+        .take(5)
+        .sortedBy { it.originalIndex }  // Maintain reading order
+        .joinToString("\n")
+}
+```
+
+### Audio Playback
+
+- Uses **Media3 ExoPlayer** for audio/video playback
+- Supports HLS streaming (`.m3u8`) and direct MP3
+- Mini player with seek bar at bottom of screen
+- Background playback continues when navigating
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| Language | Kotlin |
+| Min SDK | 24 (Android 7.0) |
+| Architecture | Clean Architecture + MVVM |
+| DI | Hilt |
+| Async | Kotlin Coroutines + Flow |
+| Media | Media3 ExoPlayer |
+| Image Loading | Coil |
+| JSON | Gson |
+
+## Issues Encountered
+
+### 1. Dynamic Audio Loading
+**Problem**: Some news sites (especially Dân Trí) load audio content dynamically via JavaScript/API calls, not embedded in the initial HTML.
+
+**Solution**:
+- Added multiple retry attempts with delays (2s, 5s, 7s)
+- Search in `<script>` tag content for audio URLs
+- Check `currentSrc` property for dynamically loaded media
+
+**Limitation**: If audio is loaded via a separate API call without any URL in the DOM, JavaScript injection cannot detect it.
+
+### 2. WebView Content Extraction
+**Problem**: Need to extract article text from WebView for summarization, but each site has different HTML structure.
+
+**Solution**:
+- Use multiple CSS selectors for different sites
+- VnExpress: `.fck_detail`, `.article-content`
+- Dân Trí: `.singular-content`, `.dt-news__content`
+- Generic fallbacks: `article`, `main`, `.post-content`
+
+### 3. Summarization Without AI API
+**Problem**: The requirement asks for content summarization, but using external AI APIs would add unnecessary dependencies.
+
+**Solution**: Implemented extractive summarization algorithm that:
+- Scores sentences based on position, word frequency, length, and keywords
+- Selects top 5 highest-scoring sentences
+- Maintains original order for readability
+
+## Build & Run
+
 ```bash
+# Clone repository
 git clone https://github.com/your-repo/coccoc-podcasts.git
+
+# Build debug APK
+./gradlew assembleDevDebug
+
+# Install on device
+./gradlew installDevDebug
 ```
 
-2. Open project in Android Studio
+### Build Variants
 
-3. Sync Gradle
+| Environment | App ID Suffix | Command |
+|-------------|---------------|---------|
+| Dev | `.dev` | `./gradlew assembleDevDebug` |
+| Staging | `.staging` | `./gradlew assembleStagingDebug` |
+| Production | (none) | `./gradlew assembleProductionRelease` |
 
-4. Select build variant:
-   - `devDebug` for development
-   - `stagingDebug` for staging
-   - `productionRelease` for production
+## Future Improvements
 
-5. Run the app
-
-## Key Components
-
-### AudioPlayerManager
-Manages audio playback using Media3 ExoPlayer with support for:
-- HLS streaming
-- MP3 playback
-- Background playback
-- Playback state management
-
-### MiniPlayerView
-A custom view that displays:
-- Current track info
-- Playback controls
-- Seek bar
-- Time progress
-
-### Download System
-Uses Android DownloadManager for:
-- Background downloads
-- Progress tracking
-- Notification support
-
-## Localization
-
-The app supports:
-- English (default)
-- Vietnamese (`values-vi/`)
-
-Add new languages by creating `values-{language-code}/strings.xml`
-
-## Dependencies
-
-```kotlin
-// Core Android
-androidx.core:core-ktx
-androidx.appcompat:appcompat
-androidx.activity:activity-ktx
-androidx.fragment:fragment-ktx
-
-// UI
-androidx.constraintlayout:constraintlayout
-androidx.recyclerview:recyclerview
-androidx.cardview:cardview
-
-// Lifecycle
-androidx.lifecycle:lifecycle-runtime-ktx
-androidx.lifecycle:lifecycle-viewmodel-ktx
-
-// Dependency Injection
-com.google.dagger:hilt-android
-
-// Coroutines
-org.jetbrains.kotlinx:kotlinx-coroutines-core
-org.jetbrains.kotlinx:kotlinx-coroutines-android
-
-// Media
-androidx.media3:media3-exoplayer
-androidx.media3:media3-exoplayer-hls
-androidx.media3:media3-ui
-androidx.media3:media3-session
-
-// Image Loading
-io.coil-kt:coil
-
-// JSON
-com.google.code.gson:gson
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. **API Integration**: Replace mock data with real API from VnExpress/Dân Trí
+2. **Offline Support**: Cache articles and downloaded audio for offline access
+3. **AI Summarization**: Integrate with LLM API for better summaries
+4. **Background Service**: Proper foreground service for audio playback
+5. **Network Interception**: Use OkHttp interceptor to capture audio URLs from network requests
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is created for the Cốc Cốc Android Developer test assignment.
