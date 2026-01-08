@@ -1,7 +1,7 @@
 package com.test.coccoc.di
 
+import com.test.coccoc.data.repository.AiSummarizationRepositoryImpl
 import com.test.coccoc.data.repository.DownloadRepositoryImpl
-import com.test.coccoc.data.repository.FakeSummarizationRepositoryImpl
 import com.test.coccoc.data.repository.MockArticleRepositoryImpl
 import com.test.coccoc.domain.repository.ArticleRepository
 import com.test.coccoc.domain.repository.DownloadRepository
@@ -31,6 +31,6 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSummarizationRepository(
-        impl: FakeSummarizationRepositoryImpl
+        impl: AiSummarizationRepositoryImpl
     ): SummarizationRepository
 }

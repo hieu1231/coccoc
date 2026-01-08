@@ -18,6 +18,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.test.coccoc.R
 import com.test.coccoc.data.player.PlaybackState
 import com.test.coccoc.databinding.FragmentArticleDetailBinding
@@ -35,6 +36,8 @@ class ArticleDetailFragment : Fragment() {
 
     private val viewModel: ArticleDetailViewModel by viewModels()
     private var currentArticleId: String? = null
+    private var audioAdapter: AudioAdapter? = null
+    private var isAudioListExpanded = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -50,8 +53,31 @@ class ArticleDetailFragment : Fragment() {
         currentArticleId = arguments?.getString(ArticleDetailViewModel.ARTICLE_ID_KEY)
         setupWindowInsets()
         setupWebView()
+        setupAudioList()
         setupClickListeners()
         observeStates()
+    }
+
+    private fun setupAudioList() {
+        audioAdapter = AudioAdapter(
+            onPlayClick = { audioItem ->
+                // Play specific audio directly
+                viewModel.playSpecificAudio(audioItem.url)
+            },
+            onDownloadClick = { audioItem ->
+                viewModel.selectAudioUrl(audioItem.url)
+                viewModel.downloadAudio()
+            },
+            onItemClick = { audioItem ->
+                // Select and play when tap on item
+                viewModel.playSpecificAudio(audioItem.url)
+            }
+        )
+
+        binding.audioListRecyclerView.apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = audioAdapter
+        }
     }
 
     private fun setupWindowInsets() {
@@ -81,23 +107,42 @@ class ArticleDetailFragment : Fragment() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     // Extract content immediately
-                    injectContentExtractorScript()
+                    safeInjectContentExtractorScript()
                     // Delay audio search to allow dynamic content to load
                     view?.postDelayed({
-                        injectAudioFinderScript()
+                        safeInjectAudioFinderScript()
                     }, 2000) // Wait 2 seconds for dynamic content
                     // Try again after 5 seconds in case audio loads later
                     view?.postDelayed({
-                        injectAudioFinderScript()
+                        safeInjectAudioFinderScript()
                     }, 5000)
                     // Final check after 7 seconds - call onNoAudioFound if still not found
                     view?.postDelayed({
-                        injectFinalAudioCheck()
+                        safeInjectFinalAudioCheck()
                     }, 7000)
                 }
             }
 
             webChromeClient = WebChromeClient()
+        }
+    }
+
+    // Safe wrapper functions to prevent NullPointerException when fragment is destroyed
+    private fun safeInjectAudioFinderScript() {
+        if (_binding != null && isAdded) {
+            injectAudioFinderScript()
+        }
+    }
+
+    private fun safeInjectFinalAudioCheck() {
+        if (_binding != null && isAdded) {
+            injectFinalAudioCheck()
+        }
+    }
+
+    private fun safeInjectContentExtractorScript() {
+        if (_binding != null && isAdded) {
+            injectContentExtractorScript()
         }
     }
 
@@ -109,16 +154,24 @@ class ArticleDetailFragment : Fragment() {
                 if (window._audioAlreadyFound) return;
 
                 var audioUrls = [];
+                var playingAudioUrl = null;
 
-                // Find audio elements
+                // Find audio elements and detect if any is playing
                 var audioElements = document.querySelectorAll('audio');
                 audioElements.forEach(function(audio) {
                     if (audio.src) {
                         audioUrls.push(audio.src);
+                        // Check if this audio is currently playing
+                        if (!audio.paused && audio.currentTime > 0) {
+                            playingAudioUrl = audio.src;
+                        }
                     }
                     // Check currentSrc (for dynamically loaded audio)
                     if (audio.currentSrc) {
                         audioUrls.push(audio.currentSrc);
+                        if (!audio.paused && audio.currentTime > 0) {
+                            playingAudioUrl = audio.currentSrc;
+                        }
                     }
                     var sources = audio.querySelectorAll('source');
                     sources.forEach(function(source) {
@@ -133,9 +186,15 @@ class ArticleDetailFragment : Fragment() {
                 videoElements.forEach(function(video) {
                     if (video.src) {
                         audioUrls.push(video.src);
+                        if (!video.paused && video.currentTime > 0) {
+                            playingAudioUrl = video.src;
+                        }
                     }
                     if (video.currentSrc) {
                         audioUrls.push(video.currentSrc);
+                        if (!video.paused && video.currentTime > 0) {
+                            playingAudioUrl = video.currentSrc;
+                        }
                     }
                     var sources = video.querySelectorAll('source');
                     sources.forEach(function(source) {
@@ -263,10 +322,13 @@ class ArticleDetailFragment : Fragment() {
                            (url.includes('.mp3') || url.includes('.m4a') || url.includes('.m3u8') || url.includes('.wav') || url.includes('playlist'));
                 });
 
-                // Send result to Android
+                // Send result to Android with all URLs
                 if (uniqueUrls.length > 0) {
                     window._audioAlreadyFound = true;
-                    AndroidAudio.onAudioFound(uniqueUrls[0]);
+                    // If we detected a playing audio, use that as primary; otherwise use first
+                    var primaryUrl = playingAudioUrl || uniqueUrls[0];
+                    // Send all URLs as JSON array
+                    AndroidAudio.onMultipleAudioFound(primaryUrl, JSON.stringify(uniqueUrls));
                 }
                 // Don't call onNoAudioFound here - let the delayed retry handle it
             })();
@@ -353,6 +415,22 @@ class ArticleDetailFragment : Fragment() {
         }
 
         @JavascriptInterface
+        fun onMultipleAudioFound(primaryUrl: String, allUrlsJson: String) {
+            activity?.runOnUiThread {
+                try {
+                    val allUrls = com.google.gson.Gson().fromJson(
+                        allUrlsJson,
+                        Array<String>::class.java
+                    ).toList()
+                    viewModel.onAudioFound(primaryUrl, allUrls)
+                } catch (e: Exception) {
+                    // Fallback to single URL
+                    viewModel.onAudioFound(primaryUrl)
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun onNoAudioFound() {
             activity?.runOnUiThread {
                 viewModel.onNoAudioFound()
@@ -383,6 +461,10 @@ class ArticleDetailFragment : Fragment() {
 
             downloadButton.setOnClickListener {
                 viewModel.downloadAudio()
+            }
+
+            expandAudioListButton.setOnClickListener {
+                toggleAudioList()
             }
 
             summarizeFab.setOnClickListener {
@@ -455,6 +537,8 @@ class ArticleDetailFragment : Fragment() {
             when (state) {
                 is AudioSearchState.Idle -> {
                     audioPlayerCard.isVisible = false
+                    audioListRecyclerView.isVisible = false
+                    expandAudioListButton.isVisible = false
                 }
                 is AudioSearchState.Searching -> {
                     audioPlayerCard.isVisible = true
@@ -464,20 +548,50 @@ class ArticleDetailFragment : Fragment() {
                     downloadButton.isEnabled = false
                     playbackLoading.isVisible = true
                     playPauseButton.isVisible = false
+                    expandAudioListButton.isVisible = false
+                    audioListRecyclerView.isVisible = false
                 }
                 is AudioSearchState.Found -> {
                     audioPlayerCard.isVisible = true
-                    audioStatusTitle.text = getString(R.string.audio_found)
+                    val audioCount = state.allAudioUrls.size
+                    val hasMultipleAudio = audioCount > 1
+
+                    audioStatusTitle.text = if (hasMultipleAudio) {
+                        getString(R.string.audio_found_count, audioCount)
+                    } else {
+                        getString(R.string.audio_found)
+                    }
                     playbackStatusText.text = getString(R.string.tap_to_play)
                     playPauseButton.isEnabled = true
                     downloadButton.isEnabled = true
                     playbackLoading.isVisible = false
                     playPauseButton.isVisible = true
+
+                    // Show expand button if multiple audio files
+                    expandAudioListButton.isVisible = hasMultipleAudio
+
+                    // Update audio list
+                    if (hasMultipleAudio) {
+                        val audioItems = state.allAudioUrls.map { url ->
+                            AudioItem(url = url, isSelected = url == state.audioUrl)
+                        }
+                        audioAdapter?.submitList(audioItems)
+                    }
                 }
                 is AudioSearchState.NotFound -> {
                     audioPlayerCard.isVisible = false
+                    audioListRecyclerView.isVisible = false
+                    expandAudioListButton.isVisible = false
                 }
             }
+        }
+    }
+
+    private fun toggleAudioList() {
+        isAudioListExpanded = !isAudioListExpanded
+        binding.apply {
+            audioListRecyclerView.isVisible = isAudioListExpanded
+            expandAudioListButton.rotation = if (isAudioListExpanded) 180f else 0f
         }
     }
 
@@ -602,7 +716,7 @@ class ArticleDetailFragment : Fragment() {
                     summaryCard.isVisible = true
                     summarizeFab.isVisible = false
                     summaryLoadingLayout.isVisible = true
-                    summaryText.isVisible = false
+                    summaryScrollView.isVisible = false
                     summaryErrorLayout.isVisible = false
                 }
 
@@ -610,7 +724,7 @@ class ArticleDetailFragment : Fragment() {
                     summaryCard.isVisible = true
                     summarizeFab.isVisible = false
                     summaryLoadingLayout.isVisible = false
-                    summaryText.isVisible = true
+                    summaryScrollView.isVisible = true
                     summaryText.text = state.summary
                     summaryErrorLayout.isVisible = false
                 }
@@ -619,7 +733,7 @@ class ArticleDetailFragment : Fragment() {
                     summaryCard.isVisible = true
                     summarizeFab.isVisible = false
                     summaryLoadingLayout.isVisible = false
-                    summaryText.isVisible = false
+                    summaryScrollView.isVisible = false
                     summaryErrorLayout.isVisible = true
                     summaryErrorText.text = state.message
                 }
@@ -629,7 +743,12 @@ class ArticleDetailFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        binding.articleWebView.destroy()
+        // Remove all pending callbacks to prevent NullPointerException
+        _binding?.articleWebView?.apply {
+            removeCallbacks(null)
+            stopLoading()
+            destroy()
+        }
         _binding = null
     }
 

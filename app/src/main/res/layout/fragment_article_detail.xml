@@ -129,7 +129,30 @@
                     android:src="@drawable/ic_download"
                     app:tint="#1B5E20" />
 
+                <!-- Expand button for multiple audio files -->
+                <ImageButton
+                    android:id="@+id/expandAudioListButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/select_audio"
+                    android:src="@drawable/ic_expand_more"
+                    android:visibility="gone"
+                    app:tint="#1B5E20" />
+
             </LinearLayout>
+
+            <!-- Audio List (expandable) -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/audioListRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxHeight="200dp"
+                android:nestedScrollingEnabled="true"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="8dp"
+                android:visibility="gone"
+                tools:listitem="@layout/item_audio" />
 
             <!-- Download Progress -->
             <LinearLayout
@@ -262,16 +285,24 @@
             </LinearLayout>
 
             <!-- Summary Content -->
-            <TextView
-                android:id="@+id/summaryText"
+            <ScrollView
+                android:id="@+id/summaryScrollView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:lineSpacingMultiplier="1.4"
-                android:textSize="14sp"
-                android:textColor="#333333"
-                android:visibility="gone"
-                tools:text="Tóm tắt nội dung bài viết sẽ hiển thị ở đây..." />
+                android:maxHeight="300dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/summaryText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingMultiplier="1.4"
+                    android:textSize="14sp"
+                    android:textColor="#333333"
+                    tools:text="Tóm tắt nội dung bài viết sẽ hiển thị ở đây..." />
+
+            </ScrollView>
 
             <!-- Summary Error -->
             <LinearLayout

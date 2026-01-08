@@ -29,7 +29,10 @@ sealed class SummaryState {
 sealed class AudioSearchState {
     object Idle : AudioSearchState()
     object Searching : AudioSearchState()
-    data class Found(val audioUrl: String) : AudioSearchState()
+    data class Found(
+        val audioUrl: String,
+        val allAudioUrls: List<String> = listOf()
+    ) : AudioSearchState()
     object NotFound : AudioSearchState()
 }
 
@@ -39,7 +42,7 @@ class ArticleDetailViewModel @Inject constructor(
     private val downloadAudioUseCase: DownloadAudioUseCase,
     private val summarizeContentUseCase: SummarizeContentUseCase,
     val audioPlayerManager: AudioPlayerManager,
-    savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val articleId: String = savedStateHandle.get<String>(ARTICLE_ID_KEY)
@@ -57,11 +60,20 @@ class ArticleDetailViewModel @Inject constructor(
     private val _audioSearchState = MutableStateFlow<AudioSearchState>(AudioSearchState.Idle)
     val audioSearchState: StateFlow<AudioSearchState> = _audioSearchState.asStateFlow()
 
-    // Store the audio URL found from WebView JavaScript
-    private var dynamicAudioUrl: String? = null
+    // Store the audio URL found from WebView JavaScript (persisted via SavedStateHandle)
+    private var dynamicAudioUrl: String?
+        get() = savedStateHandle.get<String>(AUDIO_URL_KEY)
+        set(value) { savedStateHandle[AUDIO_URL_KEY] = value }
 
-    // Store web content extracted from WebView for summarization
-    private var webContent: String? = null
+    // Store all detected audio URLs for multiple audio support (persisted via SavedStateHandle)
+    private var savedAudioUrls: List<String>
+        get() = savedStateHandle.get<List<String>>(ALL_AUDIO_URLS_KEY) ?: emptyList()
+        set(value) { savedStateHandle[ALL_AUDIO_URLS_KEY] = value }
+
+    // Store web content extracted from WebView for summarization (persisted via SavedStateHandle)
+    private var savedWebContent: String?
+        get() = savedStateHandle.get<String>(WEB_CONTENT_KEY)
+        set(value) { savedStateHandle[WEB_CONTENT_KEY] = value }
 
     // Expose playback state from AudioPlayerManager
     val playbackState: StateFlow<PlaybackState> = audioPlayerManager.playbackState
@@ -98,10 +110,20 @@ class ArticleDetailViewModel @Inject constructor(
         _audioSearchState.value = AudioSearchState.Searching
     }
 
-    fun onAudioFound(audioUrl: String) {
+    fun onAudioFound(audioUrl: String, allUrls: List<String> = listOf(audioUrl)) {
         dynamicAudioUrl = audioUrl
-        _audioSearchState.value = AudioSearchState.Found(audioUrl)
+        savedAudioUrls = allUrls
+        _audioSearchState.value = AudioSearchState.Found(audioUrl, allUrls)
     }
+
+    fun selectAudioUrl(audioUrl: String) {
+        if (savedAudioUrls.contains(audioUrl)) {
+            dynamicAudioUrl = audioUrl
+            _audioSearchState.value = AudioSearchState.Found(audioUrl, savedAudioUrls)
+        }
+    }
+
+    fun getAllAudioUrls(): List<String> = savedAudioUrls
 
     fun onNoAudioFound() {
         dynamicAudioUrl = null
@@ -111,7 +133,7 @@ class ArticleDetailViewModel @Inject constructor(
     fun getAudioUrl(): String? = dynamicAudioUrl
 
     fun setWebContent(content: String) {
-        webContent = content
+        savedWebContent = content
     }
 
     fun downloadAudio() {
@@ -146,9 +168,25 @@ class ArticleDetailViewModel @Inject constructor(
         }
     }
 
+    fun playSpecificAudio(audioUrl: String) {
+        val article = (_articleState.value as? UiState.Success)?.data ?: return
+
+        // Update selected audio URL
+        selectAudioUrl(audioUrl)
+
+        // Stop current playback and play new audio
+        audioPlayerManager.stop()
+        audioPlayerManager.play(
+            articleId = articleId,
+            audioUrl = audioUrl,
+            title = article.title,
+            thumbnailUrl = article.thumbnailUrl
+        )
+    }
+
     fun summarizeContent() {
         // Only use web content extracted from WebView via JavaScript
-        val content = webContent
+        val content = savedWebContent
 
         if (content.isNullOrBlank()) {
             _summaryState.value = SummaryState.Error("Đang tải nội dung, vui lòng thử lại sau")
@@ -196,5 +234,8 @@ class ArticleDetailViewModel @Inject constructor(
 
     companion object {
         const val ARTICLE_ID_KEY = "articleId"
+        private const val AUDIO_URL_KEY = "audioUrl"
+        private const val ALL_AUDIO_URLS_KEY = "allAudioUrls"
+        private const val WEB_CONTENT_KEY = "webContent"
     }
 }

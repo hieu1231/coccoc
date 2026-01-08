@@ -46,7 +46,9 @@
     <!-- WebView -->
     <string name="searching_audio">Đang tìm audio…</string>
     <string name="audio_found">Đã tìm thấy audio</string>
+    <string name="audio_found_count">Tìm thấy %d audio</string>
     <string name="no_audio_found">Không tìm thấy audio</string>
+    <string name="select_audio">Chọn audio</string>
 
     <!-- Time format -->
     <string name="time_format">%1$s / %2$s</string>

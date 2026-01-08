@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingVertical="10dp">
+
+    <!-- Selection indicator -->
+    <ImageView
+        android:id="@+id/audioSelectedIcon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_check"
+        android:visibility="invisible"
+        app:tint="#1B5E20"
+        tools:visibility="visible" />
+
+    <!-- Audio info -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/audioFileName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:textColor="#1B5E20"
+            android:textSize="13sp"
+            tools:text="audio_file_name.mp3" />
+
+        <TextView
+            android:id="@+id/audioFileType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:alpha="0.7"
+            android:textColor="#1B5E20"
+            android:textSize="11sp"
+            tools:text="MP3" />
+
+    </LinearLayout>
+
+    <!-- Play button -->
+    <ImageButton
+        android:id="@+id/audioItemPlayButton"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/play"
+        android:src="@drawable/ic_play"
+        app:tint="#1B5E20" />
+
+    <!-- Download button -->
+    <ImageButton
+        android:id="@+id/audioItemDownloadButton"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/download"
+        android:src="@drawable/ic_download"
+        app:tint="#1B5E20" />
+
+</LinearLayout>

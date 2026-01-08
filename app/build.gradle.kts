@@ -1,8 +1,22 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+}
+
+// Load local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+
+fun getLocalProperty(key: String, defaultValue: String = ""): String {
+    return localProperties.getProperty(key, defaultValue)
 }
 
 android {
@@ -44,6 +58,7 @@ android {
             versionNameSuffix = "-dev"
             buildConfigField("String", "BASE_URL", "\"https://dev-api.coccoc.com/\"")
             buildConfigField("String", "ENV_NAME", "\"Development\"")
+            buildConfigField("String", "GEMINI_API_KEY", "\"${getLocalProperty("GEMINI_API_KEY")}\"")
             resValue("string", "app_name", "CocCoc Dev")
         }
         create("staging") {
@@ -52,12 +67,14 @@ android {
             versionNameSuffix = "-staging"
             buildConfigField("String", "BASE_URL", "\"https://staging-api.coccoc.com/\"")
             buildConfigField("String", "ENV_NAME", "\"Staging\"")
+            buildConfigField("String", "GEMINI_API_KEY", "\"${getLocalProperty("GEMINI_API_KEY")}\"")
             resValue("string", "app_name", "CocCoc Staging")
         }
         create("production") {
             dimension = "environment"
             buildConfigField("String", "BASE_URL", "\"https://api.coccoc.com/\"")
             buildConfigField("String", "ENV_NAME", "\"Production\"")
+            buildConfigField("String", "GEMINI_API_KEY", "\"${getLocalProperty("GEMINI_API_KEY")}\"")
             resValue("string", "app_name", "CocCoc Podcasts")
         }
     }
@@ -111,6 +128,9 @@ dependencies {
 
     // JSON
     implementation(libs.gson)
+
+    // Network
+    implementation(libs.okhttp)
 
     // Media3 ExoPlayer (Audio/Video playback with HLS support)
     implementation(libs.media3.exoplayer)
